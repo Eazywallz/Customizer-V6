@@ -1,0 +1,125 @@
+{% schema %}
+{
+  "name": "Eazywallz Cropper (Modal)",
+  "target": "section",
+  "settings": [
+    { "type": "text", "id": "button_label", "label": "Customize button label", "default": "Customize" },
+    { "type": "text", "id": "backend_crop_endpoint", "label": "Backend crop endpoint", "default": "/apps/eazy-cropper/crop" },
+    { "type": "checkbox", "id": "enable_panel_overlay", "label": "Show panel overlay toggle", "default": true },
+    { "type": "text", "id": "panel_target_in", "label": "Target panel width (in)", "default": "24" },
+    { "type": "text", "id": "panel_max_in", "label": "Max panel width (in)", "default": "25" },
+    { "type": "text", "id": "min_area_ft2", "label": "Minimum area (ft²)", "default": "30" },
+    { "type": "select", "id": "default_unit", "label": "Default unit", "options": [
+      { "value": "in", "label": "Inches" },
+      { "value": "cm", "label": "Centimeters" }
+    ], "default": "in" }
+  ]
+}
+{% endschema %}
+
+{% assign money_format = shop.money_format %}
+{% assign currency_code = localization.country.currency.iso_code %}
+
+{%- comment -%}
+Gather variant IDs + prices so JS can calculate totals.
+{%- endcomment -%}
+{% assign variant_prices = '' %}
+{% for v in product.variants %}
+  {% assign cents = v.price | times: 1 %}
+  {% assign entry = v.id | append: ':' | append: cents %}
+  {% if forloop.first %}
+    {% assign variant_prices = entry %}
+  {% else %}
+    {% assign variant_prices = variant_prices | append: ',' | append: entry %}
+  {% endif %}
+{% endfor %}
+
+<div
+  id="ewz-cropper-block"
+  data-product-id="{{ product.id }}"
+  data-variant-id="{{ product.selected_or_first_available_variant.id }}"
+  data-variant-prices="{{ variant_prices }}"
+  data-money-format="{{ money_format | escape }}"
+  data-currency="{{ currency_code }}"
+  data-endpoint="{{ block.settings.backend_crop_endpoint }}"
+  data-enable-panels="{{ block.settings.enable_panel_overlay }}"
+  data-panel-target="{{ block.settings.panel_target_in }}"
+  data-panel-max="{{ block.settings.panel_max_in }}"
+  data-min-area="{{ block.settings.min_area_ft2 }}"
+  data-default-unit="{{ block.settings.default_unit }}"
+  data-product-handle="{{ product.handle }}"
+>
+
+  <!-- Customize button -->
+  <button type="button" class="ewz-btn ewz-open">
+    {{ block.settings.button_label }}
+  </button>
+
+  <!-- Modal -->
+  <div class="ewz-modal" aria-hidden="true">
+    <div class="ewz-modal__dialog" role="dialog" aria-modal="true">
+      <div class="ewz-modal__header">
+        <h3>Customize your mural</h3>
+        <button type="button" class="ewz-close" aria-label="Close">×</button>
+      </div>
+
+      <div class="ewz-modal__body">
+        <div class="ewz-toolbar">
+
+          <!-- Width / Height inputs -->
+          <div class="ewz-dims">
+            <label>Width
+              <input id="ewz-width" type="number" min="12" step="0.25" inputmode="decimal">
+            </label>
+            <label>Height
+              <input id="ewz-height" type="number" min="12" step="0.25" inputmode="decimal">
+            </label>
+            <div class="ewz-unit">
+              <label class="sr-only">Unit</label>
+              <select id="ewz-unit">
+                <option value="in" {% if block.settings.default_unit == 'in' %}selected{% endif %}>in</option>
+                <option value="cm" {% if block.settings.default_unit == 'cm' %}selected{% endif %}>cm</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Toggles & info buttons -->
+          <div class="ewz-toggles">
+            {% if block.settings.enable_panel_overlay %}
+              <label class="ewz-checkbox">
+                <input type="checkbox" id="ewz-panels" checked> Show panel lines
+              </label>
+            {% endif %}
+            <button class="ewz-info" data-info="measure">How to measure?</button>
+            <button class="ewz-info" data-info="paper">Paper type differences</button>
+          </div>
+
+          <!-- Area & price -->
+          <div class="ewz-price">
+            <div>Area: <strong><span id="ewz-area">0</span> ft²</strong></div>
+            <div class="ewz-price-line">
+              <span>Total:</span> <strong id="ewz-total">—</strong>
+            </div>
+            <div id="ewz-minwarn" class="ewz-warn" hidden>
+              Minimum order is {{ block.settings.min_area_ft2 }} ft².
+            </div>
+          </div>
+        </div>
+
+        <!-- Canvas -->
+        <div class="ewz-canvas-wrap">
+          <canvas id="ewz-canvas"></canvas>
+        </div>
+      </div>
+
+      <div class="ewz-modal__footer">
+        <button class="ewz-btn ewz-add" type="button">Add to cart</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Load assets -->
+<link rel="stylesheet" href="{{ 'eazywallz-cropper.css' | asset_url }}">
+{{ 'fabric.5.3.0.min.js' | asset_url | script_tag }}
+{{ 'eazywallz-cropper.js' | asset_url | script_tag }}
