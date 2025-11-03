@@ -8,16 +8,24 @@ const ALLOWED_ORIGIN       = process.env.ALLOWED_ORIGIN || "";
 const upload = multer({ storage: multer.memoryStorage() });
 const app = express();
 
+// --- CORS: allow Shopify frontends to call this API ---
+const allowList = (process.env.ALLOWED_ORIGIN || "")
+  .split(",")
+  .map(s => s.trim())
+  .filter(Boolean);
+
 app.use((req, res, next) => {
-  if (ALLOWED_ORIGIN) {
-    res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
-    res.setHeader('Vary', 'Origin');
+  const origin = req.headers.origin || "";
+  if (!allowList.length || allowList.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin || allowList[0] || "*");
+    res.setHeader("Vary", "Origin");
   }
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") return res.status(200).end(); // handle preflight
   next();
 });
+
 
 async function shopifyGraphQL(query, variables) {
   const resp = await fetch(`https://${SHOPIFY_STORE_DOMAIN}/admin/api/2025-01/graphql.json`, {
